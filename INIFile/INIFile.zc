@@ -7,7 +7,7 @@ struct INIFile {
 	const MultiSectionDelimiter = "|";
 	
 	static String TrimSpace(String s, bool fromStart = true, bool fromEnd = true) {
-		let len = s.Length();
+		uint len = s.Length();
 		if (len == 0)
 			return "";
 		
@@ -15,8 +15,8 @@ struct INIFile {
 		
 		// Find first non-whitespace character.
 		if (fromStart)
-		for (let i = 0; i < len; i++) {
-			let code = s.CharCodeAt(i);
+		for (uint i = 0; i < len; i++) {
+			let code = s.ByteAt(i);
 			if (
 				code == 32 ||
 				(code <= 31 && ((1 << code) & WhitespaceASCIIChars))
@@ -29,7 +29,7 @@ struct INIFile {
 		// Find last non-whitespace character.
 		if (fromEnd)
 		for (let i = end; i > start; i--) {
-			let code = s.CharCodeAt(i);
+			let code = s.ByteAt(i);
 			if (
 				code == 32 ||
 				(code <= 31 && ((1 << code) & WhitespaceASCIIChars))
@@ -46,8 +46,8 @@ struct INIFile {
 	}
 	
 	static bool IsAllSpace(String s) {
-		for (let i = 0, len = s.Length(); i < len; i++) {
-			let code = s.CharCodeAt(i);
+		for (uint i = 0, len = s.Length(); i < len; i++) {
+			let code = s.ByteAt(i);
 			if (
 				code != 32 &&
 				(code > 31 || !((1 << code) & WhitespaceASCIIChars))
@@ -88,10 +88,10 @@ struct INIFile {
 			let line = TrimSpace(lines[lineNum]);
 			
 			// Skip blank lines and comment lines.
-			if (line == "" || line.CharAt(0) == "#")
+			if (line == "" || line.ByteAt(0) == "#")
 				continue;
 			
-			if (line.CharAt(0) == "[") {
+			if (line.ByteAt(0) == "[") {
 				// This is a section header.
 				let end = line.IndexOf("]", 1);
 				
@@ -212,10 +212,10 @@ struct INIFile {
 		return Section(level.MapName);
 	}
 	
-	String, INISection, uint Get(String sectionName, String key, String default = "") const {
+	String, INISection, uint Get(String sectionName, String key, String def = "") const {
 		let section = Section(sectionName);
 		if (!section)
-			return default, null, 0;
+			return def, null, 0;
 		
 		String value;
 		uint keyIndex;
@@ -224,44 +224,48 @@ struct INIFile {
 		return value, section, keyIndex;
 	}
 	
-	int, INISection, uint GetInt(String sectionName, String key, int base = 0, int default = 0) const {
+	int, INISection, uint GetInt(String sectionName, String key, int base = 0, int def = 0) const {
 		String s;
 		INISection sec;
 		uint i;
 		[s, sec, i] = Get(sectionName, key);
-		return s? s.ToInt(base) : default, sec, i;
+		return s.Length() > 0 ? s.ToInt(base) : def, sec, i;
 	}
 	
-	double, INISection, uint GetDouble(String sectionName, String key, double default = 0) const {
+	double, INISection, uint GetDouble(String sectionName, String key, double def = 0) const {
 		String s;
 		INISection sec;
 		uint i;
 		[s, sec, i] = Get(sectionName, key);
-		return s? s.ToDouble() : default, sec, i;
+		return s.Length() > 0 ? s.ToDouble() : def, sec, i;
 	}
 	
-	bool, INISection, uint GetBool(String sectionName, String key, bool default = false) const {
+	bool, INISection, uint GetBool(String sectionName, String key, bool def = false) const {
 		String s;
 		INISection sec;
 		uint i;
 		[s, sec, i] = Get(sectionName, key);
-		return s? ParseBool(s) : default, sec, i;
+		return s.Length() > 0 ? ParseBool(s) : def, sec, i;
 	}
 	
-	String, INISection, uint CurrentMapGet(String key, String default = "") const {
-		return Get(level.MapName, key, default);
+	String, INISection, uint CurrentMapGet(String key, String def = "") const {
+		let [a, b, c] = Get(level.MapName, key, def);
+		return a, b, c;
 	}
 	
-	int, INISection, uint CurrentMapGetInt(String key, int base = 0, int default = 0) const {
-		return GetInt(level.MapName, key, base, default);
+	int, INISection, uint CurrentMapGetInt(String key, int base = 0, int def = 0) const {
+		let [a, b, c] = GetInt(level.MapName, key, base, def);
+		return a, b, c;
 	}
 	
-	double, INISection, uint CurrentMapGetDouble(String key, double default = 0) const {
-		return GetDouble(level.MapName, key, default);
+	double, INISection, uint CurrentMapGetDouble(String key, double def = 0) const {
+		let [a, b, c] = GetDouble(level.MapName, key, def);
+		return a, b, c;
 	}
 	
-	bool, INISection, uint CurrentMapGetBool(String key, bool default = false) const {
-		return GetBool(level.MapName, key, default);
+	bool, INISection, uint CurrentMapGetBool(String key, bool def = false) const {
+		let [a, b, c] = GetBool(level.MapName, key, def);
+		return a, b, c;
 	}
 	
 	String, INISection, uint Set(String sectionName, String key, String value) {
@@ -333,12 +337,12 @@ struct INIFile {
 		}
 		
 		if (purgeNoMatch || purgeSuperSubSections)
-		for (uint sectionIndex = Sections.Size() - 1; sectionIndex >= 0; sectionIndex--) {
+		for (uint sectionIndex = Sections.Size(); sectionIndex-- > 0; ) {
 			let sectionName = Sections[sectionIndex].Name;
 			let nameLen = sectionName.Length();
 			
 			if (nameLen >= 2)
-			switch (sectionName.CharCodeAt(nameLen - 1)) {
+			switch (sectionName.ByteAt(nameLen - 1)) {
 				case 43: // +
 				case 45: // -
 					if (purgeSuperSubSections) {
@@ -373,46 +377,50 @@ class INISection {
 		}
 	}
 	
-	String, uint Get(String key, String default = "") const {
+	String, uint Get(String key, String def = "") const {
 		let idx = IndexOf(key);
-		return (idx == Values.Size()? default : Values[idx]), idx;
+		return (idx == Values.Size()? def : Values[idx]), idx;
 	}
 	
-	int, uint GetInt(String key, int base = 0, int default = 0) const {
+	int, uint GetInt(String key, int base = 0, int def = 0) const {
 		String s;
 		uint i;
 		[s, i] = Get(key);
-		return s? s.ToInt(base) : default, i;
+		return s.Length() > 0 ? s.ToInt(base) : def, i;
 	}
 	
-	double, uint GetDouble(String key, double default = 0) const {
+	double, uint GetDouble(String key, double def = 0) const {
 		String s;
 		uint i;
 		[s, i] = Get(key);
-		return s? s.ToDouble() : default, i;
+		return s.Length() > 0 ? s.ToDouble() : def, i;
 	}
 	
-	bool, uint GetBool(String key, bool default = false) const {
+	bool, uint GetBool(String key, bool def = false) const {
 		String s;
 		uint i;
 		[s, i] = Get(key);
-		return s? INIFile.ParseBool(s) : default, i;
+		return s.Length() > 0 ? INIFile.ParseBool(s) : def, i;
 	}
 	
-	String, uint CurrentMapGet(String default = "") const {
-		return Get(level.MapName, default);
+	String, uint CurrentMapGet(String def = "") const {
+		let [a, b] = Get(level.MapName, def);
+		return a, b;
 	}
 	
-	int, uint CurrentMapGetInt(int base = 0, int default = 0) const {
-		return GetInt(level.MapName, base, default);
+	int, uint CurrentMapGetInt(int base = 0, int def = 0) const {
+		let [a, b] = GetInt(level.MapName, base, def);
+		return a, b;
 	}
 	
-	double, uint CurrentMapGetDouble(double default = 0) const {
-		return GetDouble(level.MapName, default);
+	double, uint CurrentMapGetDouble(double def = 0) const {
+		let [a, b] = GetDouble(level.MapName, def);
+		return a, b;
 	}
 	
-	bool, uint CurrentMapGetBool(bool default = false) const {
-		return GetBool(level.MapName, default);
+	bool, uint CurrentMapGetBool(bool def = false) const {
+		let [a, b] = GetBool(level.MapName, def);
+		return a, b;
 	}
 	
 	String, uint Set(String key, String value) {
@@ -431,7 +439,7 @@ class INISection {
 	}
 	
 	String Remove(String key) {
-		let idx = IndexOf(key), ov = "";
+		int idx = IndexOf(key); String ov = "";
 		
 		if (idx < Keys.Size()) {
 			ov = Values[idx];
